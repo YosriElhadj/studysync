@@ -10,4 +10,5 @@ interface AuthRepository {
     suspend fun googleSignIn(idToken: String): Flow<Resource<User>>
     suspend fun logout()
     fun getCurrentUser(): User?
+    suspend fun resetPassword(email: String): Result<Unit>
 }

@@ -35,6 +35,7 @@ fun StudySyncTextField(
     modifier: Modifier = Modifier,
     isError: Boolean = false,
     errorMessage: String? = null,
+    isEnabled: Boolean = true,  // Added isEnabled parameter
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
     visualTransformation: VisualTransformation = VisualTransformation.None
 ) {
@@ -45,6 +46,7 @@ fun StudySyncTextField(
             label = { Text(label) },
             modifier = modifier.fillMaxWidth(),
             isError = isError,
+            enabled = isEnabled,  // Added enabled property
             keyboardOptions = keyboardOptions,
             visualTransformation = visualTransformation,
             singleLine = true

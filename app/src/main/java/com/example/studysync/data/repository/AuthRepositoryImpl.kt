@@ -51,4 +51,14 @@ class AuthRepositoryImpl @Inject constructor(
         // Implement get current user logic
         return null
     }
+
+    override suspend fun resetPassword(email: String): Result<Unit> {
+        return try {
+            // Implement your actual reset password logic here
+            // For now, we'll just simulate success
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }
