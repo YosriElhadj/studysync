@@ -58,8 +58,12 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
 
+    //ICONS
+    implementation("androidx.compose.material:material-icons-extended:1.5.4")
+
     // DI - Hilt
     implementation(libs.hilt.android)
+    implementation(libs.firebase.perf.ktx)
     kapt(libs.hilt.compiler)
     implementation(libs.hilt.navigation.compose)
 

@@ -47,7 +47,17 @@ fun NavGraph(navController: NavHostController) {
         }
 
         composable(route = Screens.Home.route) {
-            HomeScreen()
+            HomeScreen(
+                onLogout = {
+                    // Clear any stored session/tokens if needed
+                    navController.navigate(Screens.Login.route) {
+                        // Clear the back stack so user can't go back after logout
+                        popUpTo(Screens.Home.route) {
+                            inclusive = true
+                        }
+                    }
+                }
+            )
         }
     }
 }
