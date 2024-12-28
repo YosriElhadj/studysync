@@ -43,6 +43,26 @@ class AuthRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun signUp(
+        email: String,
+        password: String,
+        displayName: String
+    ): Flow<Resource<User>> = flow {
+        emit(Resource.Loading())
+        try {
+            // Implement your actual sign up logic here
+            // For now, we'll just simulate success
+            kotlinx.coroutines.delay(1000) // Simulate network delay
+            emit(Resource.Success(User(
+                id = "1",
+                email = email,
+                displayName = displayName
+            )))
+        } catch (e: Exception) {
+            emit(Resource.Error(e.message ?: "An unexpected error occurred"))
+        }
+    }
+
     override suspend fun logout() {
         // Implement logout logic
     }

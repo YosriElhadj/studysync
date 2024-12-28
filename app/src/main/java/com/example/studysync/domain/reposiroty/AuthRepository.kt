@@ -11,4 +11,9 @@ interface AuthRepository {
     suspend fun logout()
     fun getCurrentUser(): User?
     suspend fun resetPassword(email: String): Result<Unit>
+    suspend fun signUp(
+        email: String,
+        password: String,
+        displayName: String
+    ): Flow<Resource<User>>
 }
