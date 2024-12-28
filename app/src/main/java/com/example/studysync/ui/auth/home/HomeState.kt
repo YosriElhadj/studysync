@@ -1,21 +1,14 @@
 package com.example.studysync.ui.auth.home
 
-import androidx.compose.ui.graphics.Color
+import com.example.studysync.domain.model.User
 
-data class HomeState(
-    val userName: String = "",
-    val isLoading: Boolean = false,
-    val error: String? = null,
-    val courses: List<Course> = emptyList(),
-    val upcomingTasks: List<Task> = emptyList(),
-    val studyStats: StudyStats = StudyStats()
-)
+
 
 data class Course(
     val id: String,
     val title: String,
     val progress: Float, // 0f to 1f
-    val color: Color
+    val color: android.graphics.Color
 )
 
 data class Task(
@@ -37,4 +30,14 @@ data class StudyStats(
     val streakDays: Int = 0,
     val weeklyGoal: Float = 0f,
     val weeklyProgress: Float = 0f
+)
+
+data class HomeState(
+    val user: User? = null,
+    val isLoading: Boolean = false,
+    val error: String? = null,
+    val studyStats: StudyStats = StudyStats(),
+    val courses: List<Course> = emptyList(),
+    val upcomingTasks: List<Task> = emptyList(),
+    val isEditingProfile: Boolean = false
 )

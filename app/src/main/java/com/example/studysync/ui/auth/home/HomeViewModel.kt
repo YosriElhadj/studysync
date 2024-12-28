@@ -10,104 +10,37 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import androidx.compose.ui.graphics.Color
+import com.example.studysync.domain.model.User
+import com.example.studysync.domain.reposiroty.CourseRepository
+import com.example.studysync.domain.reposiroty.UserRepository
+import com.example.studysync.util.Resource
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    private val userRepository: UserRepository, // Add this repository
+    private val courseRepository: CourseRepository // Add this repository
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(HomeState())
     val state: StateFlow<HomeState> = _state
 
     init {
-        loadUserData()
-        loadMockData()
+        loadInitialData()
     }
 
-    private fun loadUserData() {
-        viewModelScope.launch {
-            try {
-                authRepository.getCurrentUser()?.let { user ->
-                    _state.update { it.copy(userName = user.displayName) }
-                } ?: run {
-                    _state.update { it.copy(error = "User not found") }
-                }
-            } catch (e: Exception) {
-                _state.update {
-                    it.copy(error = e.message ?: "Error loading user data")
-                }
-            }
-        }
-    }
-
-    private fun loadMockData() {
+    private fun loadInitialData() {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
             try {
-                val mockCourses = listOf(
-                    Course(
-                        id = "1",
-                        title = "Mathematics",
-                        progress = 0.75f,
-                        color = Color(0xFF2196F3)
-                    ),
-                    Course(
-                        id = "2",
-                        title = "Physics",
-                        progress = 0.45f,
-                        color = Color(0xFFF44336)
-                    ),
-                    Course(
-                        id = "3",
-                        title = "Computer Science",
-                        progress = 0.90f,
-                        color = Color(0xFF4CAF50)
-                    )
-                )
+                // Load user profile
+                loadUserProfile()
+                // Load courses and tasks
+                loadUserCourses()
+                // Load study statistics
+                loadStudyStats()
 
-                val mockTasks = listOf(
-                    Task(
-                        id = "1",
-                        title = "Complete Math Assignment",
-                        dueDate = "Today",
-                        isCompleted = false,
-                        courseId = "1",
-                        priority = TaskPriority.HIGH
-                    ),
-                    Task(
-                        id = "2",
-                        title = "Physics Lab Report",
-                        dueDate = "Tomorrow",
-                        isCompleted = false,
-                        courseId = "2",
-                        priority = TaskPriority.MEDIUM
-                    ),
-                    Task(
-                        id = "3",
-                        title = "Programming Project",
-                        dueDate = "Next Week",
-                        isCompleted = true,
-                        courseId = "3",
-                        priority = TaskPriority.LOW
-                    )
-                )
-
-                val mockStats = StudyStats(
-                    totalStudyTime = 420f, // 7 hours
-                    completedTasks = 15,
-                    streakDays = 5,
-                    weeklyGoal = 2100f, // 35 hours
-                    weeklyProgress = 1260f // 21 hours
-                )
-
-                _state.update {
-                    it.copy(
-                        courses = mockCourses,
-                        upcomingTasks = mockTasks,
-                        studyStats = mockStats,
-                        isLoading = false
-                    )
-                }
+                _state.update { it.copy(isLoading = false) }
             } catch (e: Exception) {
                 _state.update {
                     it.copy(
@@ -119,14 +52,149 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    fun onTaskCheckedChange(taskId: String, isCompleted: Boolean) {
-        _state.update { state ->
-            val updatedTasks = state.upcomingTasks.map { task ->
-                if (task.id == taskId) task.copy(isCompleted = isCompleted)
-                else task
+    private suspend fun loadUserProfile() {
+        userRepository.getUserProfile().collect { result ->
+            when (result) {
+                is Resource.Success -> {
+                    _state.update {
+                        it.copy(
+                            user = result.data,
+                            isLoading = false,
+                            error = null
+                        )
+                    }
+                }
+                is Resource.Error -> {
+                    _state.update {
+                        it.copy(
+                            error = result.message,
+                            isLoading = false
+                        )
+                    }
+                }
+                is Resource.Loading -> {
+                    _state.update { it.copy(isLoading = true) }
+                }
             }
-            state.copy(upcomingTasks = updatedTasks)
         }
+    }
+
+    private suspend fun loadUserCourses() {
+        courseRepository.getUserCourses().collect { result ->
+            when (result) {
+                is Resource.Success -> {
+                    _state.update { currentState ->
+                        currentState.copy(
+                            courses = result.data ?: emptyList(),
+                            error = null
+                        )
+                    }
+                }
+                is Resource.Error -> {
+                    _state.update {
+                        it.copy(error = result.message)
+                    }
+                }
+                is Resource.Loading -> {
+                    _state.update { it.copy(isLoading = true) }
+                }
+            }
+        }
+    }
+
+    private suspend fun loadStudyStats() {
+        userRepository.getStudyStats().collect { result ->
+            when (result) {
+                is Resource.Success -> {
+                    _state.update { currentState ->
+                        currentState.copy(
+                            studyStats = result.data ?: StudyStats(),
+                            error = null
+                        )
+                    }
+                }
+                is Resource.Error -> {
+                    _state.update {
+                        it.copy(error = result.message)
+                    }
+                }
+                is Resource.Loading -> {
+                    _state.update { it.copy(isLoading = true) }
+                }
+            }
+        }
+    }
+
+    fun updateUserProfile(updatedUser: User) {
+        viewModelScope.launch {
+            _state.update { it.copy(isLoading = true) }
+            userRepository.updateProfile(updatedUser).collect { result ->
+                when (result) {
+                    is Resource.Success -> {
+                        _state.update {
+                            it.copy(
+                                user = result.data,
+                                isLoading = false,
+                                isEditingProfile = false,
+                                error = null
+                            )
+                        }
+                    }
+                    is Resource.Error -> {
+                        _state.update {
+                            it.copy(
+                                error = result.message,
+                                isLoading = false
+                            )
+                        }
+                    }
+                    is Resource.Loading -> {
+                        _state.update { it.copy(isLoading = true) }
+                    }
+                }
+            }
+        }
+    }
+
+    fun onTaskCheckedChange(taskId: String, isCompleted: Boolean) {
+        viewModelScope.launch {
+            try {
+                courseRepository.updateTaskStatus(taskId, isCompleted).collect { result ->
+                    when (result) {
+                        is Resource.Success -> {
+                            _state.update { state ->
+                                val updatedTasks = state.upcomingTasks.map { task ->
+                                    if (task.id == taskId) task.copy(isCompleted = isCompleted)
+                                    else task
+                                }
+                                state.copy(
+                                    upcomingTasks = updatedTasks,
+                                    error = null
+                                )
+                            }
+                            // Refresh study stats after task update
+                            loadStudyStats()
+                        }
+                        is Resource.Error -> {
+                            _state.update {
+                                it.copy(error = result.message)
+                            }
+                        }
+                        is Resource.Loading -> {
+                            _state.update { it.copy(isLoading = true) }
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                _state.update {
+                    it.copy(error = e.message ?: "Error updating task")
+                }
+            }
+        }
+    }
+
+    fun toggleEditProfile() {
+        _state.update { it.copy(isEditingProfile = !it.isEditingProfile) }
     }
 
     fun clearError() {
@@ -134,13 +202,19 @@ class HomeViewModel @Inject constructor(
     }
 
     fun refresh() {
-        loadUserData()
-        loadMockData()
+        loadInitialData()
     }
 
     fun logout() {
         viewModelScope.launch {
-            authRepository.logout()
+            try {
+                authRepository.logout()
+                _state.update { HomeState() } // Reset state
+            } catch (e: Exception) {
+                _state.update {
+                    it.copy(error = e.message ?: "Error during logout")
+                }
+            }
         }
     }
 }

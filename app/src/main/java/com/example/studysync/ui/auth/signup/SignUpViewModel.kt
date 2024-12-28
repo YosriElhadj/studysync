@@ -20,39 +20,104 @@ class SignUpViewModel @Inject constructor(
     val state: StateFlow<SignUpState> = _state
 
     fun onEmailChange(email: String) {
-        _state.update { it.copy(email = email) }
-    }
-
-    fun onPasswordChange(password: String) {
-        _state.update { it.copy(password = password) }
-    }
-
-    fun onConfirmPasswordChange(confirmPassword: String) {
-        _state.update { it.copy(confirmPassword = confirmPassword) }
-    }
-
-    fun onDisplayNameChange(displayName: String) {
-        _state.update { it.copy(displayName = displayName) }
-    }
-
-    private fun validateInput(): String? {
-        val state = _state.value
-        return when {
-            state.email.isBlank() -> "Email cannot be empty"
-            state.password.isBlank() -> "Password cannot be empty"
-            state.confirmPassword.isBlank() -> "Confirm password cannot be empty"
-            state.displayName.isBlank() -> "Display name cannot be empty"
-            state.password != state.confirmPassword -> "Passwords do not match"
-            state.password.length < 6 -> "Password must be at least 6 characters"
-            !android.util.Patterns.EMAIL_ADDRESS.matcher(state.email).matches() -> "Invalid email format"
-            else -> null
+        _state.update {
+            it.copy(
+                email = email,
+                emailError = null,
+                error = null
+            )
         }
     }
 
+    fun onPasswordChange(password: String) {
+        _state.update {
+            it.copy(
+                password = password,
+                passwordError = null,
+                error = null
+            )
+        }
+        validatePasswordMatch()
+    }
+
+    fun onConfirmPasswordChange(confirmPassword: String) {
+        _state.update {
+            it.copy(
+                confirmPassword = confirmPassword,
+                confirmPasswordError = null,
+                error = null
+            )
+        }
+        validatePasswordMatch()
+    }
+
+    fun onDisplayNameChange(displayName: String) {
+        _state.update {
+            it.copy(
+                displayName = displayName,
+                displayNameError = null,
+                error = null
+            )
+        }
+    }
+
+    private fun validatePasswordMatch() {
+        val state = _state.value
+        if (state.password.isNotBlank() && state.confirmPassword.isNotBlank()
+            && state.password != state.confirmPassword) {
+            _state.update {
+                it.copy(confirmPasswordError = "Passwords do not match")
+            }
+        }
+    }
+
+    private fun validateInput(): Boolean {
+        val state = _state.value
+        var isValid = true
+
+        if (state.displayName.isBlank()) {
+            _state.update {
+                it.copy(displayNameError = "Display name cannot be empty")
+            }
+            isValid = false
+        }
+
+        if (state.email.isBlank()) {
+            _state.update {
+                it.copy(emailError = "Email cannot be empty")
+            }
+            isValid = false
+        } else if (!android.util.Patterns.EMAIL_ADDRESS.matcher(state.email).matches()) {
+            _state.update {
+                it.copy(emailError = "Invalid email format")
+            }
+            isValid = false
+        }
+
+        if (state.password.isBlank()) {
+            _state.update {
+                it.copy(passwordError = "Password cannot be empty")
+            }
+            isValid = false
+        } else if (state.password.length < 6) {
+            _state.update {
+                it.copy(passwordError = "Password must be at least 6 characters")
+            }
+            isValid = false
+        }
+
+        if (state.confirmPassword != state.password) {
+            _state.update {
+                it.copy(confirmPasswordError = "Passwords do not match")
+            }
+            isValid = false
+        }
+
+        return isValid
+    }
+
     fun onSignUpClick() {
-        val validationError = validateInput()
-        if (validationError != null) {
-            _state.update { it.copy(error = validationError) }
+        if (!validateInput()) {
             return
         }
 
@@ -92,5 +157,17 @@ class SignUpViewModel @Inject constructor(
 
     fun clearError() {
         _state.update { it.copy(error = null) }
+    }
+
+    fun clearFieldErrors() {
+        _state.update {
+            it.copy(
+                emailError = null,
+                passwordError = null,
+                confirmPasswordError = null,
+                displayNameError = null,
+                error = null
+            )
+        }
     }
 }

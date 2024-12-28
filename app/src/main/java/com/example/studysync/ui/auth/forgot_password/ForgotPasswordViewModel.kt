@@ -20,23 +20,51 @@ class ForgotPasswordViewModel @Inject constructor(
     val state: StateFlow<ForgotPasswordState> = _state
 
     fun onEmailChange(email: String) {
-        _state.update { it.copy(email = email) }
+        _state.update { it.copy(
+            email = email,
+            // Reset error when user starts typing
+            error = null
+        ) }
     }
 
     fun onResetPasswordClick() {
+        val email = state.value.email
+
+        // Basic email validation
+        if (email.isBlank()) {
+            _state.update { it.copy(error = "Email cannot be empty") }
+            return
+        }
+
+        if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+            _state.update { it.copy(error = "Please enter a valid email address") }
+            return
+        }
+
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, error = null) }
 
             try {
-                // Call your repository method here
-                // For now, we'll simulate a delay
-                kotlinx.coroutines.delay(1000)
-                _state.update {
-                    it.copy(
-                        isLoading = false,
-                        isSuccess = true
-                    )
-                }
+                val result = authRepository.resetPassword(email)
+                result.fold(
+                    onSuccess = {
+                        _state.update {
+                            it.copy(
+                                isLoading = false,
+                                isSuccess = true,
+                                successMessage = "Password reset instructions have been sent to your email"
+                            )
+                        }
+                    },
+                    onFailure = { exception ->
+                        _state.update {
+                            it.copy(
+                                isLoading = false,
+                                error = exception.message ?: "Failed to send reset password email"
+                            )
+                        }
+                    }
+                )
             } catch (e: Exception) {
                 _state.update {
                     it.copy(
@@ -51,4 +79,12 @@ class ForgotPasswordViewModel @Inject constructor(
     fun clearError() {
         _state.update { it.copy(error = null) }
     }
+
+    fun clearSuccess() {
+        _state.update { it.copy(
+            isSuccess = false,
+            successMessage = null
+        ) }
+    }
 }
+

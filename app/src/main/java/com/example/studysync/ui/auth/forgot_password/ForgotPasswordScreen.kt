@@ -3,7 +3,6 @@ package com.example.studysync.ui.auth.forgot_password
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -13,6 +12,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.studysync.ui.auth.components.StudySyncButton
 import com.example.studysync.ui.auth.components.StudySyncTextField
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -21,11 +21,33 @@ fun ForgotPasswordScreen(
     viewModel: ForgotPasswordViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
+    var showSuccessMessage by remember { mutableStateOf(false) }
 
     LaunchedEffect(state.isSuccess) {
         if (state.isSuccess) {
-            // Show success message and navigate back
+            showSuccessMessage = true
+            delay(2000) // Show success message for 2 seconds
             onNavigateBack()
+        }
+    }
+
+    // Handle snackbar
+    val snackbarHostState = remember { SnackbarHostState() }
+    LaunchedEffect(state.error, state.successMessage) {
+        when {
+            state.error != null -> {
+                snackbarHostState.showSnackbar(
+                    message = state.error!!,
+                    duration = SnackbarDuration.Short
+                )
+                viewModel.clearError()
+            }
+            state.successMessage != null -> {
+                snackbarHostState.showSnackbar(
+                    message = state.successMessage!!,
+                    duration = SnackbarDuration.Short
+                )
+            }
         }
     }
 
@@ -42,7 +64,8 @@ fun ForgotPasswordScreen(
                     }
                 }
             )
-        }
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { padding ->
         Column(
             modifier = Modifier
@@ -66,28 +89,52 @@ fun ForgotPasswordScreen(
                 value = state.email,
                 onValueChange = viewModel::onEmailChange,
                 label = "Email",
-                isEnabled = !state.isLoading
+                isEnabled = !state.isLoading,
+                isError = state.error != null,
+                supportingText = if (state.error != null) {
+                    { Text(state.error!!) }
+                } else null
             )
-
-            if (state.error != null) {
-                Text(
-                    text = state.error!!,
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodyMedium
-                )
-            }
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            StudySyncButton(
-                text = "Reset Password",
-                onClick = { viewModel.onResetPasswordClick() },
-                enabled = !state.isLoading && state.email.isNotBlank()
-            )
+            Box(
+                modifier = Modifier.fillMaxWidth(),
+                contentAlignment = Alignment.Center
+            ) {
+                StudySyncButton(
+                    text = if (state.isLoading) "Sending..." else "Reset Password",
+                    onClick = { viewModel.onResetPasswordClick() },
+                    enabled = !state.isLoading && state.email.isNotBlank(),
+                    modifier = Modifier.fillMaxWidth()
+                )
 
-            if (state.isLoading) {
-                CircularProgressIndicator()
+                if (state.isLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier
+                            .size(24.dp)
+                            .padding(4.dp)
+                    )
+                }
             }
+
+            if (showSuccessMessage) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer
+                    )
+                ) {
+                    Text(
+                        text = "Reset instructions sent to your email!",
+                        modifier = Modifier.padding(16.dp),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.weight(1f))
         }
     }
 }

@@ -1,5 +1,6 @@
 package com.example.studysync.ui.auth.login
 
+import android.util.Patterns
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.studysync.domain.usecase.GoogleSignInUseCase
@@ -21,11 +22,71 @@ class LoginViewModel @Inject constructor(
     private val _state = MutableStateFlow(LoginState())
     val state: StateFlow<LoginState> = _state
 
-    fun login(email: String, password: String) {
+    fun onEmailChange(email: String) {
+        _state.update {
+            it.copy(
+                email = email,
+                emailError = null,
+                error = null
+            )
+        }
+    }
+
+    fun onPasswordChange(password: String) {
+        _state.update {
+            it.copy(
+                password = password,
+                passwordError = null,
+                error = null
+            )
+        }
+    }
+
+    private fun validateInputs(): Boolean {
+        val emailResult = validateEmail()
+        val passwordResult = validatePassword()
+        return emailResult && passwordResult
+    }
+
+    private fun validateEmail(): Boolean {
+        val email = state.value.email
+        return when {
+            email.isBlank() -> {
+                _state.update { it.copy(emailError = "Email cannot be empty") }
+                false
+            }
+            !Patterns.EMAIL_ADDRESS.matcher(email).matches() -> {
+                _state.update { it.copy(emailError = "Please enter a valid email address") }
+                false
+            }
+            else -> true
+        }
+    }
+
+    private fun validatePassword(): Boolean {
+        val password = state.value.password
+        return when {
+            password.isBlank() -> {
+                _state.update { it.copy(passwordError = "Password cannot be empty") }
+                false
+            }
+            password.length < 6 -> {
+                _state.update { it.copy(passwordError = "Password must be at least 6 characters") }
+                false
+            }
+            else -> true
+        }
+    }
+
+    fun login() {
+        if (!validateInputs()) {
+            return
+        }
+
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, error = null) }
 
-            loginUseCase(email, password).collect { result ->
+            loginUseCase(state.value.email, state.value.password).collect { result ->
                 when (result) {
                     is Resource.Loading -> {
                         _state.update { it.copy(isLoading = true, error = null) }
@@ -58,9 +119,6 @@ class LoginViewModel @Inject constructor(
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, error = null) }
 
-            // Here you would typically get the idToken from Google Sign-In SDK
-            // For now, we'll handle this as a placeholder
-            // You'll need to implement the actual Google Sign-In flow
             googleSignInUseCase("").collect { result ->
                 when (result) {
                     is Resource.Loading -> {

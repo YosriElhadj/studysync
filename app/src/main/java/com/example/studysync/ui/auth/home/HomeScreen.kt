@@ -16,6 +16,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Whatshot
 import androidx.compose.ui.Alignment
+import com.example.studysync.domain.model.User
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -30,6 +32,9 @@ fun HomeScreen(
             TopAppBar(
                 title = { Text("StudySync") },
                 actions = {
+                    IconButton(onClick = { viewModel.toggleEditProfile() }) {
+                        Icon(Icons.Default.Person, contentDescription = "Profile")
+                    }
                     IconButton(onClick = {
                         viewModel.logout()
                         onLogout()
@@ -40,85 +45,159 @@ fun HomeScreen(
             )
         }
     ) { padding ->
-        Box(modifier = Modifier.fillMaxSize()) {  // Add Box as container
+        Box(modifier = Modifier.fillMaxSize().padding(padding)) {
             if (state.isLoading) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator()
-                }
-                return@Scaffold
-            }
+                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+            } else {
+                LazyColumn(modifier = Modifier.fillMaxSize()) {
+                    // Welcome Section
+                    item {
+                        WelcomeSection(userName = state.user?.displayName ?: "")
+                    }
 
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-            ) {
-                // Welcome Section
-                item {
-                    WelcomeSection(userName = state.userName)
-                }
-
-                // Study Stats Section
-                item {
-                    StudyStatsSection(stats = state.studyStats)
-                }
-
-                // Courses Section
-                item {
-                    Text(
-                        text = "Your Courses",
-                        style = MaterialTheme.typography.titleLarge,
-                        modifier = Modifier.padding(16.dp)
-                    )
-                }
-                item {
-                    LazyRow(
-                        contentPadding = PaddingValues(horizontal = 16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        items(state.courses) { course ->
-                            CourseCard(course = course)
+                    // Profile Section (when editing)
+                    if (state.isEditingProfile) {
+                        item {
+                            ProfileSection(
+                                user = state.user,
+                                onSave = { updatedUser ->
+                                    viewModel.updateUserProfile(updatedUser)
+                                }
+                            )
                         }
+                    }
+
+                    // Study Stats Section
+                    item {
+                        StudyStatsSection(stats = state.studyStats)
+                    }
+
+                    // Courses Section
+                    item {
+                        CoursesHeader()
+                    }
+                    item {
+                        CoursesList(courses = state.courses)
+                    }
+
+                    // Tasks Section
+                    item {
+                        TasksHeader()
+                    }
+                    items(state.upcomingTasks) { task ->
+                        TaskItem(
+                            task = task,
+                            onCheckedChange = { isCompleted ->
+                                viewModel.onTaskCheckedChange(task.id, isCompleted)
+                            }
+                        )
                     }
                 }
 
-                // Tasks Section
-                item {
-                    Text(
-                        text = "Upcoming Tasks",
-                        style = MaterialTheme.typography.titleLarge,
-                        modifier = Modifier.padding(16.dp)
+                // Error Snackbar
+                if (state.error != null) {
+                    ErrorSnackbar(
+                        error = state.error!!,
+                        onDismiss = { viewModel.clearError() }
                     )
-                }
-                items(state.upcomingTasks) { task ->
-                    TaskItem(
-                        task = task,
-                        onCheckedChange = { isCompleted ->
-                            viewModel.onTaskCheckedChange(task.id, isCompleted)
-                        }
-                    )
-                }
-            }
-
-            // Error Snackbar inside the Box
-            if (state.error != null) {
-                Snackbar(
-                    modifier = Modifier
-                        .padding(16.dp)
-                        .align(Alignment.BottomCenter),  // Now align works because it's inside Box
-                    action = {
-                        TextButton(onClick = { viewModel.clearError() }) {
-                            Text("Dismiss")
-                        }
-                    }
-                ) {
-                    Text(state.error!!)
                 }
             }
         }
+    }
+}
+
+@Composable
+fun ProfileSection(
+    user: User?,
+    onSave: (User) -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            Text(
+                text = "Profile",
+                style = MaterialTheme.typography.titleLarge
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+
+            user?.let { currentUser ->
+                OutlinedTextField(
+                    value = currentUser.displayName,
+                    onValueChange = { newName ->
+                        onSave(currentUser.copy(displayName = newName))
+                    },
+                    label = { Text("Display Name") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                OutlinedTextField(
+                    value = currentUser.email,
+                    onValueChange = { },
+                    label = { Text("Email") },
+                    enabled = false,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                // Add more fields as needed
+            }
+        }
+    }
+}
+
+@Composable
+fun CoursesHeader() {
+    Text(
+        text = "Your Courses",
+        style = MaterialTheme.typography.titleLarge,
+        modifier = Modifier.padding(16.dp)
+    )
+}
+
+@Composable
+fun CoursesList(courses: List<Course>) {
+    LazyRow(
+        contentPadding = PaddingValues(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        items(courses) { course ->
+            CourseCard(course = course)
+        }
+    }
+}
+
+@Composable
+fun TasksHeader() {
+    Text(
+        text = "Upcoming Tasks",
+        style = MaterialTheme.typography.titleLarge,
+        modifier = Modifier.padding(16.dp)
+    )
+}
+
+@Composable
+fun ErrorSnackbar(
+    error: String,
+    onDismiss: () -> Unit
+) {
+    Snackbar(
+        modifier = Modifier
+            .padding(16.dp),
+        action = {
+            TextButton(onClick = onDismiss) {
+                Text("Dismiss")
+            }
+        }
+    ) {
+        Text(error)
     }
 }
 
@@ -221,9 +300,8 @@ fun CourseCard(course: Course) {
             )
             Spacer(modifier = Modifier.height(8.dp))
             LinearProgressIndicator(
-                progress = { course.progress },
-                modifier = Modifier.fillMaxWidth(),
-                color = course.color,
+                progress = course.progress,
+                modifier = Modifier.fillMaxWidth()
             )
             Text(
                 text = "${(course.progress * 100).toInt()}% Complete",
